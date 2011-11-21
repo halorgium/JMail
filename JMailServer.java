@@ -634,7 +634,7 @@ class JMailFileIO {
             ois.close();
             fis.close();
         } catch (Exception e) {
-            System.err.println("File I/O: loadUser fail [" + username + "]");
+            System.err.println("File I/O: loadUser fail [" + username + "] " + e.getClass() + ": " + e.getMessage());
             return false;
         }
         return true;
