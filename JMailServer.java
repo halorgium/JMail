@@ -216,10 +216,10 @@ public class JMailServer {
             // No argument so print user list
             System.out.println("USER List");
 
-            Enumeration enu = allUsers.getUsers();
+            Enumeration<JMailUser> enu = allUsers.getUsers();
 
             while (enu.hasMoreElements()) {
-                JMailUser temp = (JMailUser) enu.nextElement();
+                JMailUser temp = enu.nextElement();
 
                 System.out.println(
                         " o " + temp.getName() + ": " + temp.getMessageCount()
@@ -682,10 +682,10 @@ class JMailFileIO {
             return false;
         }
 
-        Enumeration enu = JMailServer.allUsers.getUsers();
+        Enumeration<JMailUser> enu = JMailServer.allUsers.getUsers();
 
         while (enu.hasMoreElements()) {
-            JMailUser temp = (JMailUser) enu.nextElement();
+            JMailUser temp = enu.nextElement();
 
             printW.println(temp.getName());
         }
@@ -704,6 +704,8 @@ class JMailFileIO {
 
 
 class JMailThreadAccessDeniedException extends Exception {
+    public static final long serialVersionUID = 1L;
+
     public JMailThreadAccessDeniedException(String message) {
         super(message);
     }
@@ -711,6 +713,8 @@ class JMailThreadAccessDeniedException extends Exception {
 
 
 class JMailUserExistsException extends Exception {
+    public static final long serialVersionUID = 1L;
+
     public JMailUserExistsException(String message) {
         super(message);
     }
@@ -718,6 +722,8 @@ class JMailUserExistsException extends Exception {
 
 
 class JMailUserNonExistantException extends Exception {
+    public static final long serialVersionUID = 1L;
+
     public JMailUserNonExistantException(String message) {
         super(message);
     }
@@ -725,6 +731,8 @@ class JMailUserNonExistantException extends Exception {
 
 
 class JMailMessageNonExistantException extends Exception {
+    public static final long serialVersionUID = 1L;
+
     public JMailMessageNonExistantException(String message) {
         super(message);
     }
@@ -738,7 +746,7 @@ class JMailServerThread extends Thread {
     /** Port which the serer will listen on */
     private int myPort = -1;
     private int clientCount = 0;
-    private Vector children = new Vector();
+    private Vector<Thread> children = new Vector<Thread>();
 
     /** Instantiates a JMailServerThread object
      * @param listenPort port to listen for connections on using a ServerSocket
@@ -752,7 +760,7 @@ class JMailServerThread extends Thread {
         return clientCount;
     }
 
-    public void decrecmentClientCount(Object obj) throws JMailThreadAccessDeniedException {
+    public void decrecmentClientCount(Thread obj) throws JMailThreadAccessDeniedException {
         if (children.contains(obj)) {
             clientCount--;
             children.remove(obj);
@@ -784,13 +792,13 @@ class JMailServerThread extends Thread {
         while (keepSockets) {
             try {
                 if (myPort == JMailServer.POP3_PORT) {
-                    JMailServerPOP3Thread temp = new JMailServerPOP3Thread(
+                    Thread temp = new JMailServerPOP3Thread(
                             serverSocket.accept(), this);
 
                     children.add(temp);
                     temp.start();
                 } else if (myPort == JMailServer.SMTP_PORT) {
-                    JMailServerSMTPThread temp = new JMailServerSMTPThread(
+                    Thread temp = new JMailServerSMTPThread(
                             serverSocket.accept(), this);
 
                     children.add(temp);
@@ -1003,10 +1011,10 @@ class JMailServerSMTPThread extends Thread {
 class JMailSMTPQueue {
 
     /** Vector of SMTP messages waiting to be dequeued */
-    private Vector myQueue = null;
+    private Vector<JMailSMTPMessage> myQueue = null;
 
     public JMailSMTPQueue() {
-        this.myQueue = new Vector();
+        this.myQueue = new Vector<JMailSMTPMessage>();
     }
 
     /** This method adds a message to the SMTPQueue which will be forwarded to the correct location
@@ -1033,19 +1041,19 @@ class JMailSMTPQueue {
     /** This method is run every so often to process
      *  each message and deliver them correctly */
     public void processQueue() {
-        Vector toRemove = new Vector();
+        Vector<JMailSMTPMessage> toRemove = new Vector<JMailSMTPMessage>();
         JMailSMTPMessage currMessage = null;
         JMailEmailCombo currRcpt = null;
 
-        Enumeration messages = myQueue.elements();
+        Enumeration<JMailSMTPMessage> messages = myQueue.elements();
 
         while (messages.hasMoreElements()) {
-            currMessage = (JMailSMTPMessage) messages.nextElement();
+            currMessage = messages.nextElement();
 
-            Enumeration recipents = currMessage.getRecipents().elements();
+            Enumeration<JMailEmailCombo> recipents = currMessage.getRecipents().elements();
 
             while (recipents.hasMoreElements()) {
-                currRcpt = (JMailEmailCombo) recipents.nextElement();
+                currRcpt = recipents.nextElement();
 
                 String toSend = "Received: from " + currMessage.getHELOName()
                         + " (" + currMessage.getClientName() + " ["
@@ -1095,7 +1103,7 @@ class JMailSMTPQueue {
             }
         }
 
-        Enumeration removing = toRemove.elements();
+        Enumeration<JMailSMTPMessage> removing = toRemove.elements();
 
         while (removing.hasMoreElements()) {
             myQueue.remove(removing.nextElement());
@@ -2025,13 +2033,13 @@ class JMailSMTPClientConnection {
 class JMailUserStore {
 
     /** Vector of JMailUser objects used for storing messages */
-    private Vector myUsers = null;
+    private Vector<JMailUser> myUsers = null;
 
     public JMailUserStore() {
-        myUsers = new Vector();
+        myUsers = new Vector<JMailUser>();
     }
 
-    public Enumeration getUsers() {
+    public Enumeration<JMailUser> getUsers() {
         return myUsers.elements();
     }
 
@@ -2044,7 +2052,7 @@ class JMailUserStore {
 
     public JMailUser getUser(String name) throws JMailUserNonExistantException {
         for (int i = 0; i < myUsers.size(); i++) {
-            JMailUser temp = (JMailUser) myUsers.get(i);
+            JMailUser temp = myUsers.get(i);
 
             if (temp.getName().equals(name)) {
                 return temp;
@@ -2085,6 +2093,7 @@ class JMailUserStore {
 
 
 class JMailUser implements Serializable {
+    private static final long serialVersionUID = 1L;
 
     /** username of the JMailUser */
     private String myName = null;
@@ -2160,19 +2169,23 @@ class JMailUser implements Serializable {
 
 
 class JMailEmailComboList implements Serializable {
-    private Vector emails = new Vector();
+    public static final long serialVersionUID = 1L;
+
+    private Vector<JMailEmailCombo> emails = new Vector<JMailEmailCombo>();
 
     public void add(JMailEmailCombo temp) {
         emails.add(temp);
     }
 
-    public Enumeration elements() {
+    public Enumeration<JMailEmailCombo> elements() {
         return emails.elements();
     }
 }
 
 
 class JMailEmailCombo implements Serializable {
+    public static final long serialVersionUID = 1L;
+
     private String _unparsed = null;
     private String _user = null;
     private String _domain = null;
@@ -2224,14 +2237,16 @@ class JMailEmailCombo implements Serializable {
 }
 
 
-class JMailPOP3MailBox {
-    private Vector myMessages = null;
+class JMailPOP3MailBox implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    private Vector<JMailPOP3Message> myMessages = null;
 
     public JMailPOP3MailBox() {
-        myMessages = new Vector();
+        myMessages = new Vector<JMailPOP3Message>();
     }
 
-    public Enumeration getMessages() {
+    public Enumeration<JMailPOP3Message> getMessages() {
         return myMessages.elements();
     }
 
@@ -2244,7 +2259,7 @@ class JMailPOP3MailBox {
 
     private JMailPOP3Message getMessage(int messageNo) throws JMailMessageNonExistantException {
         if (getMessageExists(messageNo)) {
-            return (JMailPOP3Message) myMessages.elementAt(messageNo);
+            return myMessages.elementAt(messageNo);
         }
         throw new JMailMessageNonExistantException("Message Non-Existant");
     }
@@ -2287,6 +2302,8 @@ class JMailPOP3MailBox {
 
 
 class JMailMessage implements Serializable {
+    public static final long serialVersionUID = 1L;
+
     protected String myBody = null;
 
     public String getBody() {
@@ -2296,6 +2313,8 @@ class JMailMessage implements Serializable {
 
 
 class JMailPOP3Message extends JMailMessage implements Serializable {
+    public static final long serialVersionUID = 1L;
+
     public static final int STATE_NORMAL = 1;
     public static final int STATE_MARKED = 2;
     public static final int STATE_UNKNOWN = 3;
@@ -2334,6 +2353,7 @@ class JMailPOP3Message extends JMailMessage implements Serializable {
 
 
 class JMailSMTPMessage extends JMailMessage {
+    public static final long serialVersionUID = 1L;
 
     /** date the SMTPMessage was delivered */
     private Date myDate = null;
