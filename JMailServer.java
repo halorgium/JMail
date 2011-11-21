@@ -41,6 +41,7 @@
 import java.io.*;
 import java.net.*;
 import java.util.*;
+import java.lang.reflect.Constructor;
 
 
 /** A Java Implementation of a POP3 and SMTP server
@@ -114,17 +115,20 @@ public class JMailServer {
      * detailed information is outputed  to the screen.
      * @throws IOException This method spawns Threads and therefore can throw IOExceptions
      */
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, ClassNotFoundException, NoSuchMethodException {
         System.err.println("Server: Starting up....");
 
         initialisation(args);
 
+        Class socketClass = Class.forName("java.net.Socket");
+        Class serverThreadClass = Class.forName("JMailServerThread");
+
         // Spawn thread for POP3 server
-        POP3Thread = new JMailServerThread(POP3_PORT);
+        POP3Thread = new JMailServerThread(POP3_PORT, Class.forName("JMailServerPOP3Thread").getConstructor(socketClass, serverThreadClass));
         POP3Thread.start();
 
         // Spawn thread for SMTP server
-        SMTPThread = new JMailServerThread(SMTP_PORT);
+        SMTPThread = new JMailServerThread(SMTP_PORT, Class.forName("JMailServerSMTPThread").getConstructor(socketClass, serverThreadClass));
         SMTPThread.start();
 
         adminReadIn();
@@ -745,15 +749,18 @@ class JMailServerThread extends Thread {
 
     /** Port which the serer will listen on */
     private int myPort = -1;
+    private Constructor constructor = null;
     private int clientCount = 0;
     private Vector<Thread> children = new Vector<Thread>();
 
     /** Instantiates a JMailServerThread object
      * @param listenPort port to listen for connections on using a ServerSocket
+     * @param constructor Constructor to make the running thread
      */
-    public JMailServerThread(int listenPort) {
+    public JMailServerThread(int listenPort, Constructor constructor) {
         super("JMailServerThread");
         this.myPort = listenPort;
+        this.constructor = constructor;
     }
 
     public int getClientCount() {
@@ -791,20 +798,25 @@ class JMailServerThread extends Thread {
         // Infinite loop
         while (keepSockets) {
             try {
-                if (myPort == JMailServer.POP3_PORT) {
-                    Thread temp = new JMailServerPOP3Thread(
-                            serverSocket.accept(), this);
+                Thread temp = (Thread) constructor.newInstance(
+                    serverSocket.accept(), this);
 
-                    children.add(temp);
-                    temp.start();
-                } else if (myPort == JMailServer.SMTP_PORT) {
-                    Thread temp = new JMailServerSMTPThread(
-                            serverSocket.accept(), this);
+                children.add(temp);
+                temp.start();
 
-                    children.add(temp);
-                    temp.start();
-                }
                 clientCount++;
+            } catch (InstantiationException e) {
+                System.err.println(
+                        "ServerThread(" + myPort
+                        + "): Failed to create thread");
+            } catch (java.lang.reflect.InvocationTargetException e) {
+                System.err.println(
+                        "ServerThread(" + myPort
+                        + "): InvocationTargetException");
+            } catch (IllegalAccessException e) {
+                System.err.println(
+                        "ServerThread(" + myPort
+                        + "): IllegalAccessException");
             } catch (IOException e) {
                 System.err.println(
                         "ServerThread(" + myPort
